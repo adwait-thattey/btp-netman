@@ -29,6 +29,6 @@ exports.setPeerEnvs = (org, peer, user) => {
     process.env.CORE_PEER_LOCALMSPID=peer.msp
     process.env.CORE_PEER_TLS_ROOTCERT_FILE=`${this.peer_path(org.name, peer.name)}/tls/ca.crt`
     process.env.CORE_PEER_MSPCONFIGPATH=`${this.user_path(org.name, user.name)}/msp`
-    process.env.CORE_PEER_ADDRESS=peeradd
+    process.env.CORE_PEER_ADDRESS=peer.address
 }
 

@@ -20,6 +20,43 @@ exports.execPromise = function execPromise(cmd) {
     });
 }
 
+exports.spawnWrapper = (cmd, args, finished) => {
+    const ex = spawn(cmd, args);
+    let toReturn = false;
+    let exitCode = 0;
+    ex.stdout.on('data', data => {
+        console.log("STDOUT: ", data.toString())
+    })
+
+    ex.stderr.on('data', data => {
+        console.log("LOGS: ", data.toString())
+    })
+
+    ex.on('exit', code => {
+        finished.code = code
+    })
+
+}
+
+exports.execWrapper = (cmd) => {
+    let ex = exec(cmd)
+    return ex
+}
+
+exports.cmd_live_output = (ex) => {
+    ex.stdout.on('data', function(data) {
+        console.log("STDOUT:", data); 
+    });
+
+    ex.stderr.on('data', function(data) {
+        console.log("LOGS:", data); 
+    });
+
+    ex.on('exit', code => {
+        
+    })
+}
+
 exports.cmd_output = output => {
     console.log("----------STDOUT---------")
     console.log(output.stdout)

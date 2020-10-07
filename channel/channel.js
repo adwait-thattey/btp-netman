@@ -1,4 +1,4 @@
-let {execPromise, path_configtxgen, path_net_base, bin_path, cmd_output} = require('../base')
+let {execPromise, cmd_output, execWrapper, cmd_live_output} = require('../base')
 const path = require('path')
 const pathmaker = require('../models/pathmaker')
 
@@ -18,64 +18,67 @@ exports.peerCreateChannel = async (org, peer, user, orderer, channel) => {
 
     const cmd = `${pathmaker.peer_app} channel create -o ${orderer.address}  --ordererTLSHostnameOverride ${orderer.name} -c ${channel.name} -f ${channel.tx_path(0)} --outputBlock ${channel.block_path(0)} --tls --cafile ${pathmaker.orderer_orgs_path}/example.com/orderers/${orderer.name}/msp/tlscacerts/tlsca.example.com-cert.pem`
     
+    let obj = await execPromise(cmd)
     cmd_output(obj)
 
     // process.env.FABRIC_CFG_PATH = path.join(path_net_base, "configtx");
 }
 
-exports.peerChannelJoin = async({params,channel_block_path}) => {
+exports.peerChannelJoin = async(org, peer, user, channel) => {
     // process.env.FABRIC_CFG_PATH = path.join(path_net_base, "../config");
     
     // setPeerEnvs(orgname, peername,peermsp,peeradd, username )
-    setPeerEnvs(params)
-    
-    if(channel_block_path === undefined)
-        channel_block_path = path.join(path_net_base, '/channel-artifacts/channel1.block')
+    pathmaker.setPeerEnvs(org,peer,user)
 
-    const cmd = `${bin_path}/peer channel join -b ${channel_block_path}`
+    const cmd = `${pathmaker.peer_app} channel join -b ${channel.block_path(0)}`
 
     let obj = await execPromise(cmd)
-    console.log("STDOUT", obj.stdout)
-    console.log("\n STDERR", obj.stderr)
+    cmd_output(obj)
 
-    process.env.FABRIC_CFG_PATH = path.join(path_net_base, "configtx");
+    // process.env.FABRIC_CFG_PATH = path.join(path_net_base, "configtx");
 }
 
 
-exports.peerChannelGetInfo = async(params) => {
-    setPeerEnvs(params)
+exports.peerChannelGetInfo = async(org, peer, user, channel) => {
+    pathmaker.setPeerEnvs(org, peer, user)
 
-    const cmd=`${bin_path}/peer channel getinfo -c channel1`
+    const cmd=`${pathmaker.peer_app} channel getinfo -c ${channel.name}`
 
     let obj = await execPromise(cmd)
-    console.log("STDOUT", obj.stdout)
-    console.log("\n STDERR", obj.stderr)
+    cmd_output(obj)
 
-    process.env.FABRIC_CFG_PATH = path.join(path_net_base, "configtx");
+    // process.env.FABRIC_CFG_PATH = path.join(path_net_base, "configtx");
 }
 
-exports.fetchBlock = async({params, block_no, orderer_details, channel_name}) => {
+exports.fetchBlockUsingOrderer = async(org, peer, user, channel, orderer, block_number) => {
     // peer channel fetch 0 ./channel-artifacts/channel_org2.block -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com -c channel1 --tls --cafile ${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
-    path_net_base = "/run/media/coderdude/Adwait/Projects/btp_fabric/tutorials/fabric-samples/test-network"
-    setPeerEnvs(params)
-    cmd=`${bin_path}/peer channel fetch ${block_no} ${path_net_base}/channel-artifacts/channel_${channel_name}_${block_no}.block -o ${orderer_details.address} --ordererTLSHostnameOverride ${orderer_details.name} -c ${channel_name} --tls --cafile ${path_net_base}/organizations/ordererOrganizations/example.com/orderers/${orderer_details.name}/msp/tlscacerts/tlsca.example.com-cert.pem`
+    // path_net_base = "/run/media/coderdude/Adwait/Projects/btp_fabric/tutorials/fabric-samples/test-network"
+    pathmaker.setPeerEnvs(org,peer,user)
+
+    cmd=`${pathmaker.peer_app} channel fetch ${block_number} ${channel.block_path(block_number)} -o ${orderer.address} --ordererTLSHostnameOverride ${orderer.name} -c ${channel.name} --tls --cafile ${pathmaker.orderer_orgs_path}/example.com/orderers/${orderer.name}/msp/tlscacerts/tlsca.example.com-cert.pem`
 
     let obj = await execPromise(cmd)
-    console.log("STDOUT", obj.stdout)
-    console.log("\n STDERR", obj.stderr)
+    cmd_output(obj)
     
 }
 
-exports.deployPrebuiltChainCode = async(ccname, channel_name, initMethod="InitLedger") => {
+exports.deployPrebuiltChainCode = async(channel, initMethod="InitLedger") => {
     // ./network.sh deployCC --ccn basic -c channel1 --cci InitLedger 
 
-    path_net_base = "/run/media/coderdude/Adwait/Projects/btp_fabric/tutorials/fabric-samples/test-network"
-    cmd=`cd ${path_net_base}; ./network.sh deployCC -ccn ${ccname} -ccl javascript -c ${channel_name} -cci ${initMethod}`
+    // path_net_base = "/run/media/coderdude/Adwait/Projects/btp_fabric/tutorials/fabric-samples/test-network"
+    const code_name = "basic"
+    cmd=`cd ${pathmaker.net_path}; ./network.sh deployCC -ccn ${code_name} -ccl javascript -c ${channel.name} -cci ${initMethod}`
 
-    let obj = await execPromise(cmd)
+    const ex = await execWrapper(cmd)
+    cmd_live_output(ex)
+
+    await new Promise((resolve, reject) => {
+        ex.on('exit', code => {
+            resolve(code);
+        })
+    });
     // let obj = spawn(cmd)
-    console.log("STDOUT", obj.stdout)
-    console.log("\n STDERR", obj.stderr)
+    // cmd_output(obj)
 
     /*
         const ll = spawn('ls', ['-l', '.']);
